@@ -99,6 +99,8 @@ select {
 .main { min-width: 0; display: grid; gap: 6px; }
 .co { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .id { font-family: var(--font-mono); font-size: 12px; }
+.src { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.src.am { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
 .title { font-size: 16px; font-weight: 500; line-height: 1.4; }
 .title a { color: var(--fg); text-decoration: none; }
 .title a:hover { color: var(--accent); text-decoration: underline; }
@@ -134,7 +136,7 @@ body { margin: 0; }
 <div class="wrap">
   <header>
     <h1>QA 공고 보드</h1>
-    <p class="sub">게임잡 QA 채용 목록 1페이지 · 2026-10-16 조사 · <a href="https://www.gamejob.co.kr/Recruit/joblist?menucode=duty&amp;duty=24" target="_blank" rel="noopener">게임잡에서 보기</a></p>
+    <p class="sub">게임잡·알바몬 게임 QA 공고 · 2026-10-16 조사 · <a href="https://www.gamejob.co.kr/Recruit/joblist?menucode=duty&amp;duty=24" target="_blank" rel="noopener">게임잡</a> · <a href="https://www.albamon.com/jobs/total?includeKeyword=%EA%B2%8C%EC%9E%84QA" target="_blank" rel="noopener">알바몬</a></p>
   </header>
 
   <div class="stats" id="stats"></div>
@@ -156,6 +158,12 @@ body { margin: 0; }
         <option value="경기">경기</option>
         <option value="기타">그 외 지역</option>
       </select>
+      <span class="row-label">출처</span>
+      <select id="src" aria-label="출처">
+        <option value="">전체</option>
+        <option value="gj">게임잡</option>
+        <option value="am">알바몬</option>
+      </select>
       <span class="row-label">정렬</span>
       <select id="sort" aria-label="정렬">
         <option value="reg">최신 등록순</option>
@@ -175,49 +183,625 @@ body { margin: 0; }
 
 <script>
 const SNAPSHOT = "2026-10-16";
-// [등록일, 회사, 공고 제목, GI_No, 경력, 고용형태, 지역, 마감(YYYY-MM-DD | 채용시 | 상시 | ""), 메모]
+// [등록일, 회사, 공고 제목, 공고 번호, 경력, 고용형태, 지역, 마감(YYYY-MM-DD | 채용시 | 상시 | ""), 메모, 출처(gj | am), 링크]
+const SOURCES = { gj: "게임잡", am: "알바몬" };
 const JOBS = [
-  ["2026-10-16","쿡앱스","모바일게임 QA (계약직)",285938,"경력1년↑","계약직","경기 성남","채용시"],
-  ["2026-10-14","게임듀오","[경력] 모바일 게임 QA",285869,"경력1년↑","정규직","경기 성남","상시"],
-  ["2026-10-13","무브인터렉티브","QA팀 신입 채용",285807,"신입","정규직","경기 파주","상시"],
-  ["2026-10-13","이엑스투게임즈","[Ex2게임즈] QA",285836,"경력1년↑","계약직","서울 강남","채용시"],
-  ["2026-10-12","기어세컨드","모바일 게임 QA",285823,"경력3년↑","계약직","서울 성동","채용시"],
-  ["2026-10-12","스마일게이트","[LOST ARK Mobile] FQA 담당",285751,"경력3년↑","정규직","경기 성남","채용시"],
-  ["2026-10-12","스마일게이트","[LOST ARK Mobile] 개발QA 담당",285750,"경력1년↑","정규직","경기 성남","채용시"],
-  ["2026-10-12","스마일게이트","[LOST ARK Mobile] 개발QA 담당 (계약직)",285749,"경력무관","계약직","경기 성남","채용시"],
-  ["2026-10-08","스튜디오비사이드","[프로젝트 A] QA 담당자",285646,"경력무관","정규직, 계약직","경기 성남","채용시"],
-  ["2026-10-08","NC","[AION2] 게임 현지화 영어 번역/검수 (LQA)",285636,"신입","단기계약직","경기 성남","2026-10-31","영어 필요"],
-  ["2026-10-08","NC","[AION2] 게임 현지화 독일어 번역/검수 (LQA)",285634,"신입","단기계약직","경기 성남","2026-10-31","독일어 필요"],
-  ["2026-10-07","위메이드","게임 QA (계약직)",285604,"경력무관","계약직","경기 성남","2026-10-20"],
-  ["2026-10-07","컴투스","런처(PC 클라이언트) QA (계약직)",285587,"경력무관","계약직","서울 금천","상시"],
-  ["2026-10-07","빅게임스튜디오","[브레이커스] QA 담당자",285609,"경력1년↑","정규직","서울 강남","채용시"],
-  ["2026-10-07","슈퍼진","글로벌 캐주얼 게임 QA (계약직)",285599,"경력2년↑","계약직","경기 성남","채용시"],
-  ["2026-10-01","컴투스","운영툴/확률형 아이템 QA (계약직)",285488,"경력무관","계약직","서울 금천","상시"],
-  ["2026-09-29","펄어비스","하우징 콘텐츠 QA 아르바이트",285376,"경력무관","아르바이트","경기 과천","채용시"],
-  ["2026-09-29","에피드게임즈","[트릭컬 리바이브] QA 담당자 추가 모집",285355,"경력무관","정규직","서울 강남","채용시"],
-  ["2026-09-29","엔드나인게임즈","게임QA & 운영지원 담당자",285362,"경력무관","계약직","충남 천안","2026-10-29"],
-  ["2026-09-28","러쉬에잇","클래식 메이플스토리 QA (경력 1년+)",285292,"경력1년↑","정규직, 계약직","서울 강남","채용시"],
-  ["2026-09-28","하이퍼센트","[PC 게임] CS/QA 신입 채용",285265,"경력무관","정규직","경기 성남","채용시"],
-  ["2026-09-23","이안게임즈","개발 QA 담당 (계약직)",285237,"경력무관","계약직","서울 강남","채용시"],
-  ["2026-09-22","에이에프아이","[게임서버 뒤끝] QA 엔지니어 (경력)",285206,"경력3년↑","정규직","서울 강남","채용시"],
-  ["2026-09-21","컴투스","[서머너즈워] QA 담당자 (계약직)",285146,"경력무관","계약직","서울 금천","상시"],
-  ["2026-09-21","컴투스","[컴투스프로야구 시리즈] QA 담당자 (계약직)",285143,"경력무관","계약직","서울 금천","상시"],
-  ["2026-09-18","민트로켓","게임플레이 QA (계약직)",285105,"경력무관","계약직","경기 성남","상시"],
-  ["2026-09-16","사람인에이치에스","[역삼역/신입가능/전환가능] 게임QA",284996,"경력무관","계약직, 파견직","서울 강남·서초 외","채용시"],
-  ["2026-09-10","매드엔진","FQA 담당자 (경력)",284814,"경력3년↑","정규직","경기 성남","2026-10-30"],
-  ["2026-08-26","퍼니팩","모바일 방치형 게임 QA",284236,"경력무관","정규직, 계약직, 프리랜서","울산 중구","채용시"],
-  ["2026-08-24","데브시스터즈","[쿠키런 크럼블] QA (1년 계약직)",284113,"경력2년↑","계약직","서울 강남","채용시"],
-  ["2026-08-21","스피엘게임즈","방치형 모바일 RPG QA",284061,"경력무관","계약직, 인턴직","경기 안양","채용시"],
-  ["2026-08-18","이안게임즈","개발 QA 담당",283943,"경력2년↑","정규직, 계약직","서울 강남","채용시"],
-  ["2026-08-14","리튬포어스","콘솔 액션 게임 QA",283829,"경력3년↑","계약직","서울 성동","채용시"],
-  ["2026-08-12","그렙게임즈","[일본 IP 게임 라이브운영] QA",283695,"경력3년↑","정규직","서울 강남","채용시"],
-  ["2026-08-11","헥토큐앤엠","RPG 게임QA (경력/계약직)",283663,"경력1년↑","계약직","서울 강남","채용시"],
-  ["2026-08-05","엔나인스","[단기 알바] 모바일 게임 플레이 테스터",283533,"경력무관","아르바이트","서울 성동","채용시"],
-  ["","콩스튜디오코리아","[QA실] 게임 QA 담당자 (계약직)",285391,"","계약직","","","목록에 세부 정보 없음"]
-].map(([reg, co, title, id, exp, type, region, dl, note]) => ({
-  reg, co, title, id, exp, type, region, dl, note,
-  easy: exp === "신입" || exp === "경력무관",
-  url: "https://www.gamejob.co.kr/Recruit/GI_Read/View?GI_No=" + id
+ [
+  "2026-10-16",
+  "쿡앱스(CookApps)",
+  "[쿡앱스] 모바일게임 QA (계약직)",
+  285938,
+  "경력1년↑",
+  "계약직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-16",
+  "MMORPG/QA/테스터/게임",
+  "국내 유명 게임사 모바일 MMORPG 게임QA",
+  119747725,
+  "",
+  "기간 1년이상",
+  "서울 마포구",
+  "2026-10-21",
+  "월급 2,290,200원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119747725"
+ ],
+ [
+  "2026-10-16",
+  "유명게임사/라그나로크 경험자 우대/테스터",
+  "[마포 상암역 /유명 중견 게임사/ 신입환영]모바일 게임 QA 대규모채용",
+  119432505,
+  "신입가능",
+  "기간 1년이상",
+  "서울 마포구",
+  "2026-10-16",
+  "월급 2,290,200원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119432505"
+ ],
+ [
+  "2026-10-16",
+  "카카오계열/판교/ 플랫폼 QA 테스터",
+  "[판교인근/카카오계열사 QA전문사] 게임 QA 대규모 추가채용",
+  119632042,
+  "",
+  "기간 1년이상",
+  "경기 성남시 분당구",
+  "2026-10-23",
+  "월급 2,208,340원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119632042"
+ ],
+ [
+  "2026-10-16",
+  "글로벌게임사",
+  "[마포상암/성과급지급] 글로벌게임사 게임QA 직원 채용",
+  119742846,
+  "",
+  "기간 1년이상",
+  "서울 전체",
+  "2026-10-21",
+  "월급 2,290,200원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119742846"
+ ],
+ [
+  "2026-10-16",
+  "리드커리어㈜",
+  "[게임운영대행사 / 큐로드] 디바이스 성능 측정 QA 채용",
+  119737880,
+  "",
+  "기간 6개월~1년",
+  "서울 영등포구",
+  "2026-11-03",
+  "연봉 27,000,000원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119737880"
+ ],
+ [
+  "2026-10-14",
+  "㈜휴머니아",
+  "[마포상암/성과급지급] 글로벌게임사 게임QA 직원 채용",
+  502063258,
+  "",
+  "기간 1년이상",
+  "서울 마포구",
+  "2026-10-21",
+  "월급 2,290,000원",
+  "am",
+  "https://www.albamon.com/jobs/detail/502063258"
+ ],
+ [
+  "2026-10-14",
+  "큐로드",
+  "[11월출근 / 게임 ] 큐로드 게임 QA담당자 채용",
+  502063023,
+  "",
+  "기간 6개월~1년",
+  "서울 영등포구",
+  "상시",
+  "연봉 27,000,000원",
+  "am",
+  "https://www.albamon.com/jobs/detail/502063023"
+ ],
+ [
+  "2026-10-13",
+  "게임듀오",
+  "[경력] 모바일 게임 QA",
+  285869,
+  "경력1년↑",
+  "정규직",
+  "경기 성남시",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-13",
+  "무브인터렉티브",
+  "[무브인터렉티브] QA팀 신입 채용",
+  285807,
+  "신입",
+  "정규직",
+  "경기 파주시",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-12",
+  "기어세컨드",
+  "[기어세컨드] 모바일 게임 QA",
+  285823,
+  "경력3년↑",
+  "계약직",
+  "서울 성동구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-12",
+  "스마일게이트",
+  "[LOST ARK Mobile] FQA 담당",
+  285751,
+  "경력3년↑",
+  "정규직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-12",
+  "스마일게이트",
+  "[LOST ARK Mobile] 개발QA 담당 모집",
+  285750,
+  "경력1년↑",
+  "정규직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-12",
+  "스마일게이트",
+  "[LOST ARK Mobile] 개발QA 담당 (계약직)",
+  285749,
+  "경력무관",
+  "계약직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-12",
+  "이엑스투게임즈",
+  "[Ex2게임즈] QA",
+  285836,
+  "경력1년↑",
+  "계약직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-12",
+  "㈜조이시티",
+  "[조이시티] 프리스타일 풋볼2게임테스터 모집 (5일 근무)",
+  119692934,
+  "",
+  "기간 1주일~1개월",
+  "경기 성남시 분당구 수내동",
+  "2026-11-02",
+  "시급 14,000원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119692934"
+ ],
+ [
+  "2026-10-12",
+  "㈜큐로드",
+  "[전남광주] 게임 LQA 담당자 채용 (영어)",
+  502062240,
+  "",
+  "기간 1년이상",
+  "전남광주 동구",
+  "2026-11-11",
+  "연봉 27,000,000원 · 번역·검수 직무",
+  "am",
+  "https://www.albamon.com/jobs/detail/502062240"
+ ],
+ [
+  "2026-10-12",
+  "㈜큐로드",
+  "[전남광주] 게임 QA 담당자 채용",
+  502062236,
+  "",
+  "기간 1년이상",
+  "전남광주 동구",
+  "2026-11-11",
+  "연봉 27,000,000원",
+  "am",
+  "https://www.albamon.com/jobs/detail/502062236"
+ ],
+ [
+  "2026-10-08",
+  "스튜디오비사이드",
+  "[프로젝트 A] QA 담당자",
+  285646,
+  "경력무관",
+  "정규직, 계약직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-08",
+  "NC",
+  "[NC][단기계약직][AION2] 게임 현지화 영어 번역 / 검수 (English Linguist & LQA)",
+  285636,
+  "신입",
+  "계약직",
+  "경기 성남시",
+  "2026-10-31",
+  "번역·검수 직무",
+  "gj",
+  null
+ ],
+ [
+  "2026-10-08",
+  "NC",
+  "[NC][단기계약직][AION2] 게임 현지화 독일어 번역 / 검수 (Deutsch Linguist und LQA)",
+  285634,
+  "신입",
+  "계약직",
+  "경기 성남시",
+  "2026-10-31",
+  "번역·검수 직무",
+  "gj",
+  null
+ ],
+ [
+  "2026-10-07",
+  "위메이드",
+  "게임 QA(계약직)",
+  285604,
+  "경력무관",
+  "계약직",
+  "경기 성남시",
+  "2026-11-04",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-07",
+  "컴투스",
+  "[컴투스] 런처(PC 클라이언트) QA (계약직)",
+  285587,
+  "경력무관",
+  "계약직",
+  "서울 금천구",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-07",
+  "빅게임스튜디오",
+  "[브레이커스] QA 담당자",
+  285609,
+  "경력1년↑",
+  "정규직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-07",
+  "슈퍼진",
+  "글로벌 캐주얼 게임 QA (계약직)",
+  285599,
+  "경력2년↑",
+  "계약직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-10-04",
+  "큐로드",
+  "[게임QA / 모바일게임 ] 큐로드 게임 QA담당자 채용",
+  119499284,
+  "",
+  "기간 3개월~6개월",
+  "서울 강남구 삼성동",
+  "상시",
+  "월급 2,250,000원",
+  "am",
+  "https://www.albamon.com/jobs/detail/119499284"
+ ],
+ [
+  "2026-10-01",
+  "컴투스",
+  "운영툴/확률형 아이템 QA 담당자 (계약직)",
+  285488,
+  "경력무관",
+  "계약직",
+  "서울 금천구",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-29",
+  "펄어비스",
+  "[아르바이트] 하우징 콘텐츠 QA 아르바이트 모집",
+  285376,
+  "경력무관",
+  "아르바이트",
+  "경기 과천시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-29",
+  "에피드게임즈",
+  "[트릭컬 리바이브] QA 담당자 추가 모집",
+  285355,
+  "경력무관",
+  "정규직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-29",
+  "엔드나인게임즈",
+  "(주)엔드나인게임즈에서 게임QA & 운영지원 담당자를 찾고 있어요",
+  285362,
+  "경력무관",
+  "계약직",
+  "충남 천안시",
+  "2026-10-29",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-28",
+  "러쉬에잇",
+  "[QA] 클래식 메이플스토리 QA 담당자 (계약직/경력 1년+)",
+  285292,
+  "경력1년↑",
+  "정규직, 계약직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-28",
+  "하이퍼센트",
+  "[PC 게임] CS/QA 신입 채용",
+  285265,
+  "경력무관",
+  "정규직",
+  "경기 성남시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-23",
+  "이안게임즈",
+  "[이안게임즈] 개발 QA 담당 모집(계약직)",
+  285237,
+  "경력무관",
+  "계약직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-22",
+  "에이에프아이",
+  "[게임서버 뒤끝] QA 엔지니어 채용 (경력)",
+  285206,
+  "경력3년↑",
+  "정규직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-21",
+  "컴투스",
+  "[컴투스] [서머너즈워] QA 담당자 (계약직)",
+  285146,
+  "경력무관",
+  "계약직",
+  "서울 금천구",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-21",
+  "컴투스",
+  "[컴투스] [컴투스프로야구 시리즈] QA 담당자 (계약직)",
+  285143,
+  "경력무관",
+  "계약직",
+  "서울 금천구",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-18",
+  "민트로켓",
+  "[민트로켓] 게임플레이 QA 채용 [계약직]",
+  285105,
+  "경력무관",
+  "계약직",
+  "경기 성남시",
+  "상시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-16",
+  "사람인에이치에스",
+  "[역삼역/신입가능/전환가능] 게임QA 인재 채용",
+  284996,
+  "경력무관",
+  "계약직, 파견직",
+  "서울 강남구, 서초구 외",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-09-10",
+  "매드엔진",
+  "[매드엔진] FQA 담당자 모집 (경력)",
+  284814,
+  "경력3년↑",
+  "정규직",
+  "경기 성남시",
+  "2026-10-30",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-26",
+  "퍼니팩",
+  "모바일 방치형 게임 QA 모십니다.",
+  284236,
+  "경력무관",
+  "정규직, 계약직, 프리랜서",
+  "울산 중구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-24",
+  "데브시스터즈",
+  "[쿠키런 크럼블] QA (1년 계약직)",
+  284113,
+  "경력2년↑",
+  "계약직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-21",
+  "스피엘게임즈",
+  "방치형 모바일 RPG QA 모집",
+  284061,
+  "경력무관",
+  "계약직, 인턴직",
+  "경기 안양시",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-18",
+  "이안게임즈",
+  "[이안게임즈] 개발 QA 담당 모집",
+  283943,
+  "경력2년↑",
+  "정규직, 계약직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-14",
+  "리튬포어스",
+  "콘솔 액션 게임 QA 담당자 채용",
+  283829,
+  "경력3년↑",
+  "계약직",
+  "서울 성동구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-12",
+  "그렙게임즈",
+  "[일본 IP 게임 라이브운영] QA 담당자 모집",
+  283695,
+  "경력3년↑",
+  "정규직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-11",
+  "헥토큐앤엠",
+  "[헥토큐앤엠] RPG 게임QA 담당자 채용 (경력/계약직)",
+  283663,
+  "경력1년↑",
+  "계약직",
+  "서울 강남구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ],
+ [
+  "2026-08-05",
+  "엔나인스",
+  "[단기 알바] 모바일 게임 플레이 테스터 모집",
+  283533,
+  "경력무관",
+  "아르바이트",
+  "서울 성동구",
+  "채용시",
+  null,
+  "gj",
+  null
+ ]
+].map(([reg, co, title, id, exp, type, region, dl, note, src = "gj", url]) => ({
+  reg, co, title, id, exp, type, region, dl, note, src,
+  key: src + "-" + id,
+  easy: /신입|경력무관|초보/.test(exp),
+  url: url || "https://www.gamejob.co.kr/Recruit/GI_Read/View?GI_No=" + id
 }));
 
 const DAY = 86400000;
@@ -228,10 +812,11 @@ const isNew = j => j.reg && (toDate(SNAPSHOT) - toDate(j.reg)) / DAY <= 4;
 const md = s => { const d = toDate(s); return (d.getMonth() + 1) + "/" + d.getDate(); };
 
 let stars = new Set();
-try { stars = new Set(JSON.parse(localStorage.getItem("qa-board-stars") || "[]")); } catch (e) {}
+// 예전 페이지는 게임잡 번호(숫자)만 저장했으므로 "gj-번호"로 바꿔 읽는다
+try { stars = new Set(JSON.parse(localStorage.getItem("qa-board-stars") || "[]").map(k => typeof k === "number" ? "gj-" + k : k)); } catch (e) {}
 const saveStars = () => { try { localStorage.setItem("qa-board-stars", JSON.stringify([...stars])); } catch (e) {} };
 
-const state = { q: "", easy: false, full: false, dl: false, star: false, region: "", sort: "reg" };
+const state = { q: "", easy: false, full: false, dl: false, star: false, region: "", src: "", sort: "reg" };
 try { const s = JSON.parse(localStorage.getItem("qa-board-filters") || "null"); if (s) Object.assign(state, s, { q: "" }); } catch (e) {}
 const saveState = () => { try { localStorage.setItem("qa-board-filters", JSON.stringify(state)); } catch (e) {} };
 
@@ -253,7 +838,8 @@ function renderStats() {
     <div class="stat"><b>${open.length}</b><span>모집 중</span></div>
     <div class="stat new"><b>${JOBS.filter(isNew).length}</b><span>최근 5일 새 공고</span></div>
     <div class="stat new"><b>${JOBS.filter(j => j.easy).length}</b><span>🌱 신입·경력무관</span></div>
-    <div class="stat warn"><b>${soon}</b><span>7일 안에 마감</span></div>`;
+    <div class="stat warn"><b>${soon}</b><span>7일 안에 마감</span></div>
+    ${Object.entries(SOURCES).map(([k, name]) => `<div class="stat"><b>${JOBS.filter(j => j.src === k).length}</b><span>${name}</span></div>`).join("")}`;
 }
 
 function render() {
@@ -263,7 +849,8 @@ function render() {
     (!state.easy || j.easy) &&
     (!state.full || j.type.includes("정규직")) &&
     (!state.dl || daysLeft(j) !== null) &&
-    (!state.star || stars.has(j.id)) &&
+    (!state.star || stars.has(j.key)) &&
+    (!state.src || j.src === state.src) &&
     (!state.region || (state.region === "기타"
       ? !j.region.startsWith("서울") && !j.region.startsWith("경기")
       : j.region.startsWith(state.region)))
@@ -277,13 +864,13 @@ function render() {
   $("count").textContent = `${rows.length}건 표시`;
   $("list").innerHTML = rows.length ? rows.map(j => `
     <article class="item">
-      <button class="star" data-id="${j.id}" aria-pressed="${stars.has(j.id)}" aria-label="관심 공고 표시">★</button>
+      <button class="star" data-id="${j.key}" aria-pressed="${stars.has(j.key)}" aria-label="관심 공고 표시">★</button>
       <div class="main">
-        <div class="co"><span>${esc(j.co)}</span><span class="id">#${j.id}</span>${isNew(j) ? '<span class="newbadge">NEW</span>' : ""}</div>
+        <div class="co"><span class="src ${j.src}">${SOURCES[j.src]}</span><span>${esc(j.co)}</span><span class="id">#${j.id}</span>${isNew(j) ? '<span class="newbadge">NEW</span>' : ""}</div>
         <div class="title"><a href="${j.url}" target="_blank" rel="noopener">${esc(j.title)}</a></div>
         <div class="tags">
           ${j.exp ? `<span class="tag${j.easy ? " easy" : ""}">${j.easy ? "🌱 " : ""}${esc(j.exp)}</span>` : ""}
-          <span class="tag">${esc(j.type)}</span>
+          ${j.type ? `<span class="tag">${esc(j.type)}</span>` : ""}
           ${j.region ? `<span class="tag">${esc(j.region)}</span>` : ""}
           ${j.note ? `<span class="tag note">${esc(j.note)}</span>` : ""}
         </div>
@@ -298,6 +885,7 @@ function render() {
 function syncControls() {
   for (const k of ["easy", "full", "dl", "star"]) $("f-" + k).setAttribute("aria-pressed", state[k]);
   $("region").value = state.region;
+  $("src").value = state.src;
   $("sort").value = state.sort;
 }
 
@@ -305,12 +893,13 @@ for (const k of ["easy", "full", "dl", "star"]) {
   $("f-" + k).addEventListener("click", () => { state[k] = !state[k]; saveState(); syncControls(); render(); });
 }
 $("region").addEventListener("change", e => { state.region = e.target.value; saveState(); render(); });
+$("src").addEventListener("change", e => { state.src = e.target.value; saveState(); render(); });
 $("sort").addEventListener("change", e => { state.sort = e.target.value; saveState(); render(); });
 $("q").addEventListener("input", e => { state.q = e.target.value; render(); });
 $("list").addEventListener("click", e => {
   const b = e.target.closest(".star");
   if (!b) return;
-  const id = Number(b.dataset.id);
+  const id = b.dataset.id;
   stars.has(id) ? stars.delete(id) : stars.add(id);
   saveStars();
   if (state.star) render(); else b.setAttribute("aria-pressed", stars.has(id));
